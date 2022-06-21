@@ -1,0 +1,2 @@
+language = "python3"
+run = "python 00_24_base_v6_generic.py"

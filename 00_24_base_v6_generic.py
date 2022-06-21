@@ -1,5 +1,4 @@
 import random
-import csv
 import re
 import statistics
 
@@ -45,7 +44,7 @@ def times_adder(expression):
   expression = expression.replace('x', '*' )
   expression = expression.replace('×', '*')
   
-  # RegEx from here...
+  # Bracket adding RegEx from here...
   # https://stackoverflow.com/questions/53228036/insert-multiplication-sign-between-parenthesis
   return re.sub('(?<=\d|\))(\()', '*(', expression)
 
@@ -86,26 +85,33 @@ def info_generator(message):
 def success_generator(message):
     success_message = Color_It(120, 255, 120, message)
     print(success_message.print_colour())
+    
+# Checks input is an integer
+def intcheck(question):
+    
+    valid = False
+    while not valid:
+        
+        try:
+            response = int(input(question))
+            return response
+        
+        except ValueError:
+            print("Please enter an integer")
 
 # checks expression is valid
-def input_checker(string_numbers, var_all_numbers):
+def input_checker(var_numbers_to_use, var_use_all):
 
   valid_symbols = ["+", "-", "*", "/", "(", ")", " "]
    
-  # add numbers to list
-  valid_chars = valid_symbols + string_numbers
-  
+ 
   valid = False
   while not valid:
-    numbers_used = []
-    
-    # assume no errors at start
-    error = ""
-
+      
+    has_errors = "no"
+        
     print("\n")
     
-    print("Your numbers are:")
-    print(var_all_numbers)
     raw_user_ans = input("Type your expression here: ").lower()
     
     # allow exit code of 'xxx'
@@ -115,33 +121,37 @@ def input_checker(string_numbers, var_all_numbers):
     # add multiply signs between brackets if needed
     user_ans = times_adder(raw_user_ans)
     
-    for character in user_ans:
-      
-      # check all characters are valid
-      if character not in valid_chars:
-        error = "yes"
-        error_generator("Oops - the '{}' character  is not allowed in your expression for this problem".format(character))
-        break
-      
-      # add numbers used to list so we can check 
-      # each number has been used once only
-      else:
-        if character in string_numbers:
-          numbers_used.append(character)
-          
-    # sort numbers used
-    numbers_used.sort()
-
-    # sort numbers in question
-    string_numbers.sort()
-
+    # adds spaces before / after operators if they are missin
+    # needed so that expression is correctly split
+    user_ans = re.sub(r' ?(\d+) ?', r' \1 ', user_ans)
+    parts = user_ans.split()
     
-    if numbers_used != string_numbers:
-        error = "yes"
-        error_generator("you have not used all the given numbers once only")
+    for item in parts:
+        if item not in valid_symbols:
+            try:
+                item = int(item)
+                print("you chose", item)
+                if item in var_numbers_to_use:
+                    # remove item from numbers to use
+                    var_numbers_to_use.remove(item)
+                else:
+                    has_errors = "yes"
+                    problem = "{} is not a number in the list".format(item)
+            
+            except ValueError:
+                has_errors = "yes"
+                print("Invalid character!")
+                break
+
+    if var_use_all == "yes" and len(var_numbers_to_use) != 0:
+        has_errors = "yes"
+        problem = "You have not used all the required numbers"
+        print(numbers_to_use)
           
-    if error == "":
+    if has_errors == "no":
       return [raw_user_ans, user_ans]
+    else:
+        error_generator(problem)
 
 
 def yes_no(question):
@@ -163,9 +173,10 @@ def instructions():
     instructions_text = """
     ---- Instructions / Tips ----
     
-    You will be given four numbers between 1 and 9.  
+    You will be asked to enter the number you are given and a target number.  
+    You also will be asked if all the numbers need to be used.
     
-    Your job is to make the number 24 using all four numbers 
+    Your job is to make the target number using the numbers you entered 
     and the operators +, -,  x and ÷ (/) 
 
     *** IMPORTANT ***
@@ -195,13 +206,6 @@ def instructions():
 
 # ***** Main Routine Goes here *****
 
-
-# get sets of numbers from .csv file
-# Sets from http://mbamp.ucsc.edu/files/7915/4393/8152/Maths_24_-_cards.pdf
-with open('all_sets.csv', newline='') as f:
-    reader = csv.reader(f)
-    sets = list(reader)
-
 # lists with emoji for feedback...
 correct_emoji = ["😊", "😁", "😍", "😇", "😎", "👍", "⭐"]
 wrong_emoji = ["😢", "💥", "😭", "👎", "💔"]
@@ -220,7 +224,7 @@ swag_earned = []
 
 print()
 # Heading
-statement_generator("Welcome to the 24 Game", "-", 3)
+statement_generator("Welcome to the Target Math Game", "-", 3)
 print()
 
 # Ask user if they have played before / show instructions
@@ -238,26 +242,32 @@ if want_instructions == "yes":
 keep_going = "yes"
 while keep_going == "yes":
 
+    numbers_to_use = []
+
+    info_generator("We've assumed you have four numbers that you need to combine to get a target number.  Please enter your numbers below (followed by the target number).")
+
+    print()
+
     # choose a random set of numbers from the list
-    var_numbers = random.choice(sets)
+    for item in range(0, 4):
+        number = intcheck("Please enter a number: ")
+        numbers_to_use.append(number)
+        
+    
+    target = intcheck("Please enter the target number: ")        
+    
+    use_all = yes_no("Does the question say all the numbers need to be used? ")
     
     problems_solved += 1
     num_attempts = 0
 
-    # Give Numbers...
-    
-    all_numbers = ""
-    for item in var_numbers:
-        all_numbers += item
-        all_numbers += "\t"
-    
     # Loop for questions...
     status = ""
     while status == "":
 
     # ask question
 
-        answers = input_checker(var_numbers, all_numbers)
+        answers = input_checker(numbers_to_use, use_all)
         
         if answers == "xxx":
             swag_earned = []
@@ -284,7 +294,7 @@ while keep_going == "yes":
         num_attempts += 1
 
         # Check answer
-        if var_ans == 24:
+        if var_ans == target:
             status = "correct"
             var_decoration = random.choice(correct_emoji)
             feedback = "{} well done, you got it {}".format(var_decoration * 3, var_decoration * 3)
